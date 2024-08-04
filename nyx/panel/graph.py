@@ -14,8 +14,6 @@ Downloaded (0.0 B/sec):           Uploaded (0.0 B/sec):
          25s  50   1m   1.6  2.0           25s  50   1m   1.6  2.0
 """
 
-import timeit
-
 import copy
 import functools
 import threading
@@ -167,8 +165,6 @@ class GraphData(object):
     return self.total / max(1, self.tick)
 
   def update(self, new_value):
-    # Start timing
-    start_time = timeit.default_timer()
     if not self.first_update:
       self.latest_value = new_value
     else:
@@ -186,16 +182,6 @@ class GraphData(object):
         self.values[interval] = [new_entry] + self.values[interval][:-1]
         self._max_value[interval] = max(self._max_value[interval], new_entry)
         self._in_process_value[interval] = 0
-
-    # End timing
-        end_time = timeit.default_timer()
-
-        # Calculate execution time
-        execution_time = end_time - start_time
-
-        # Log the execution time
-        log.notice(
-            f"GraphData.update() executed in {execution_time*1_000_000_000} nanoseconds to run")
 
   def header(self, width):
     """
