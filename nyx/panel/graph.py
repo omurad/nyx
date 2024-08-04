@@ -14,6 +14,8 @@ Downloaded (0.0 B/sec):           Uploaded (0.0 B/sec):
          25s  50   1m   1.6  2.0           25s  50   1m   1.6  2.0
 """
 
+import timeit
+
 import copy
 import functools
 import threading
@@ -30,26 +32,30 @@ from nyx.menu import MenuItem, Submenu, RadioMenuItem, RadioGroup
 from stem.control import EventType, Listener
 from stem.util import conf, enum, log, str_tools, system
 
-GraphStat = enum.Enum(('BANDWIDTH', 'bandwidth'), ('CONNECTIONS', 'connections'), ('SYSTEM_RESOURCES', 'resources'))
-Interval = enum.Enum(('EACH_SECOND', 'each second'), ('FIVE_SECONDS', '5 seconds'), ('THIRTY_SECONDS', '30 seconds'), ('MINUTELY', 'minutely'), ('FIFTEEN_MINUTE', '15 minute'), ('THIRTY_MINUTE', '30 minute'), ('HOURLY', 'hourly'), ('DAILY', 'daily'))
-Bounds = enum.Enum(('GLOBAL_MAX', 'global_max'), ('LOCAL_MAX', 'local_max'), ('TIGHT', 'tight'))
+GraphStat = enum.Enum(('BANDWIDTH', 'bandwidth'), ('CONNECTIONS',
+                      'connections'), ('SYSTEM_RESOURCES', 'resources'))
+Interval = enum.Enum(('EACH_SECOND', 'each second'), ('FIVE_SECONDS', '5 seconds'), ('THIRTY_SECONDS', '30 seconds'), ('MINUTELY',
+                     'minutely'), ('FIFTEEN_MINUTE', '15 minute'), ('THIRTY_MINUTE', '30 minute'), ('HOURLY', 'hourly'), ('DAILY', 'daily'))
+Bounds = enum.Enum(('GLOBAL_MAX', 'global_max'),
+                   ('LOCAL_MAX', 'local_max'), ('TIGHT', 'tight'))
 
 INTERVAL_SECONDS = {
-  Interval.EACH_SECOND: 1,
-  Interval.FIVE_SECONDS: 5,
-  Interval.THIRTY_SECONDS: 30,
-  Interval.MINUTELY: 60,
-  Interval.FIFTEEN_MINUTE: 900,
-  Interval.THIRTY_MINUTE: 1800,
-  Interval.HOURLY: 3600,
-  Interval.DAILY: 86400,
+    Interval.EACH_SECOND: 1,
+    Interval.FIVE_SECONDS: 5,
+    Interval.THIRTY_SECONDS: 30,
+    Interval.MINUTELY: 60,
+    Interval.FIFTEEN_MINUTE: 900,
+    Interval.THIRTY_MINUTE: 1800,
+    Interval.HOURLY: 3600,
+    Interval.DAILY: 86400,
 }
 
 PRIMARY_COLOR, SECONDARY_COLOR = GREEN, CYAN
 
 ACCOUNTING_RATE = 5
 DEFAULT_CONTENT_HEIGHT = 4  # space needed for labeling above and below the graph
-WIDE_LABELING_GRAPH_COL = 50  # minimum graph columns to use wide spacing for x-axis labels
+# minimum graph columns to use wide spacing for x-axis labels
+WIDE_LABELING_GRAPH_COL = 50
 TITLE_UPDATE_RATE = 30
 
 
@@ -60,31 +66,35 @@ def conf_handler(key, value):
     return max(1, value)
   elif key == 'graph_stat':
     if value != 'none' and value not in GraphStat:
-      log.warn("'%s' isn't a valid graph type, options are: none, %s" % (CONFIG['graph_stat'], ', '.join(GraphStat)))
+      log.warn("'%s' isn't a valid graph type, options are: none, %s" %
+               (CONFIG['graph_stat'], ', '.join(GraphStat)))
       return CONFIG['graph_stat']  # keep the default
   elif key == 'graph_interval':
     if value not in Interval:
-      log.warn("'%s' isn't a valid graphing interval, options are: %s" % (value, ', '.join(Interval)))
+      log.warn("'%s' isn't a valid graphing interval, options are: %s" %
+               (value, ', '.join(Interval)))
       return CONFIG['graph_interval']  # keep the default
   elif key == 'graph_bound':
     if value not in Bounds:
-      log.warn("'%s' isn't a valid graph bounds, options are: %s" % (value, ', '.join(Bounds)))
+      log.warn("'%s' isn't a valid graph bounds, options are: %s" %
+               (value, ', '.join(Bounds)))
       return CONFIG['graph_bound']  # keep the default
 
 
 CONFIG = conf.config_dict('nyx', {
-  'attr.hibernate_color': {},
-  'attr.graph.title': {},
-  'attr.graph.header.primary': {},
-  'attr.graph.header.secondary': {},
-  'graph_bound': Bounds.LOCAL_MAX,
-  'graph_height': 7,
-  'graph_interval': Interval.EACH_SECOND,
-  'graph_stat': GraphStat.BANDWIDTH,
-  'max_graph_width': 300,  # we need some sort of max size so we know how much graph data to retain
-  'show_accounting': True,
-  'show_bits': False,
-  'show_connections': True,
+    'attr.hibernate_color': {},
+    'attr.graph.title': {},
+    'attr.graph.header.primary': {},
+    'attr.graph.header.secondary': {},
+    'graph_bound': Bounds.LOCAL_MAX,
+    'graph_height': 7,
+    'graph_interval': Interval.EACH_SECOND,
+    'graph_stat': GraphStat.BANDWIDTH,
+    # we need some sort of max size so we know how much graph data to retain
+    'max_graph_width': 300,
+    'show_accounting': True,
+    'show_bits': False,
+    'show_connections': True,
 }, conf_handler)
 
 
@@ -93,7 +103,7 @@ def _bandwidth_title_stats():
 
   stats = []
   bw_rate = controller.get_effective_rate(None)
-  bw_burst = controller.get_effective_rate(None, burst = True)
+  bw_burst = controller.get_effective_rate(None, burst=True)
 
   if bw_rate and bw_burst:
     bw_rate_label = _size_label(bw_rate)
@@ -108,7 +118,7 @@ def _bandwidth_title_stats():
     stats.append('limit: %s/s' % bw_rate_label)
     stats.append('burst: %s/s' % bw_burst_label)
 
-  my_server_descriptor = controller.get_server_descriptor(default = None)
+  my_server_descriptor = controller.get_server_descriptor(default=None)
   observed_bw = getattr(my_server_descriptor, 'observed_bandwidth', None)
 
   if observed_bw:
@@ -127,7 +137,7 @@ class GraphData(object):
   :var dict values: mapping of intervals to an array of samplings from newest to oldest
   """
 
-  def __init__(self, clone = None, category = None, is_primary = True):
+  def __init__(self, clone=None, category=None, is_primary=True):
     if clone:
       self.latest_value = clone.latest_value
       self.total = clone.total
@@ -143,18 +153,22 @@ class GraphData(object):
       self.latest_value = 0
       self.total = 0
       self.tick = 0
-      self.values = dict([(i, CONFIG['max_graph_width'] * [0]) for i in Interval])
+      self.values = dict([(i, CONFIG['max_graph_width'] * [0])
+                         for i in Interval])
 
       self._category = category
       self._is_primary = is_primary
       self._in_process_value = dict([(i, 0) for i in Interval])
-      self._max_value = dict([(i, 0) for i in Interval])  # interval => maximum value it's had
+      # interval => maximum value it's had
+      self._max_value = dict([(i, 0) for i in Interval])
       self.first_update = True  # Flag to check if update() is called for the first time
 
   def average(self):
     return self.total / max(1, self.tick)
 
   def update(self, new_value):
+    # Start timing
+    start_time = timeit.default_timer()
     if not self.first_update:
       self.latest_value = new_value
     else:
@@ -172,6 +186,16 @@ class GraphData(object):
         self.values[interval] = [new_entry] + self.values[interval][:-1]
         self._max_value[interval] = max(self._max_value[interval], new_entry)
         self._in_process_value[interval] = 0
+
+    # End timing
+        end_time = timeit.default_timer()
+
+        # Calculate execution time
+        execution_time = end_time - start_time
+
+        # Log the execution time
+        log.info(
+            f"GraphData.update() executed in {execution_time:.3f} ms")
 
   def header(self, width):
     """
@@ -235,17 +259,17 @@ class GraphCategory(object):
   :var float start_time: unix timestamp for when we started
   """
 
-  def __init__(self, clone = None):
+  def __init__(self, clone=None):
     if clone:
-      self.primary = GraphData(clone.primary, category = self)
-      self.secondary = GraphData(clone.secondary, category = self)
+      self.primary = GraphData(clone.primary, category=self)
+      self.secondary = GraphData(clone.secondary, category=self)
       self.start_time = clone.start_time
       self._title_stats = list(clone._title_stats)
       self._primary_header_stats = list(clone._primary_header_stats)
       self._secondary_header_stats = list(clone._secondary_header_stats)
     else:
-      self.primary = GraphData(category = self, is_primary = True)
-      self.secondary = GraphData(category = self, is_primary = False)
+      self.primary = GraphData(category=self, is_primary=True)
+      self.secondary = GraphData(category=self, is_primary=False)
       self.start_time = time.time()
       self._title_stats = []
       self._primary_header_stats = []
@@ -301,7 +325,7 @@ class BandwidthStats(GraphCategory):
   Tracks tor's bandwidth usage.
   """
 
-  def __init__(self, clone = None):
+  def __init__(self, clone=None):
     GraphCategory.__init__(self, clone)
     self._title_last_updated = None
 
@@ -309,14 +333,16 @@ class BandwidthStats(GraphCategory):
       # fill in past bandwidth information
 
       controller = tor_controller()
-      bw_entries, is_successful = controller.get_info('bw-event-cache', None), True
+      bw_entries, is_successful = controller.get_info(
+          'bw-event-cache', None), True
 
       if bw_entries:
         for entry in bw_entries.split():
           entry_comp = entry.split(',')
 
           if len(entry_comp) != 2 or not entry_comp[0].isdigit() or not entry_comp[1].isdigit():
-            log.warn("Tor's 'GETINFO bw-event-cache' provided malformed output: %s" % bw_entries)
+            log.warn(
+                "Tor's 'GETINFO bw-event-cache' provided malformed output: %s" % bw_entries)
             is_successful = False
             break
 
@@ -324,7 +350,8 @@ class BandwidthStats(GraphCategory):
           self.secondary.update(int(entry_comp[1]))
 
         if is_successful:
-          log.info('Bandwidth graph has information for the last %s' % str_tools.time_label(len(bw_entries.split()), is_long = True))
+          log.info('Bandwidth graph has information for the last %s' %
+                   str_tools.time_label(len(bw_entries.split()), is_long=True))
 
       read_total = controller.get_info('traffic/read', None)
       write_total = controller.get_info('traffic/written', None)
@@ -346,15 +373,17 @@ class BandwidthStats(GraphCategory):
     self.secondary.update(event.written)
 
     self._primary_header_stats = [
-      '%-14s' % ('%s/sec' % _size_label(self.primary.latest_value)),
-      '- avg: %s/sec' % _size_label(self.primary.total / (time.time() - self.start_time)),
-      ', total: %s' % _size_label(self.primary.total),
+        '%-14s' % ('%s/sec' % _size_label(self.primary.latest_value)),
+        '- avg: %s/sec' % _size_label(self.primary.total /
+                                      (time.time() - self.start_time)),
+        ', total: %s' % _size_label(self.primary.total),
     ]
 
     self._secondary_header_stats = [
-      '%-14s' % ('%s/sec' % _size_label(self.secondary.latest_value)),
-      '- avg: %s/sec' % _size_label(self.secondary.total / (time.time() - self.start_time)),
-      ', total: %s' % _size_label(self.secondary.total),
+        '%-14s' % ('%s/sec' % _size_label(self.secondary.latest_value)),
+        '- avg: %s/sec' % _size_label(self.secondary.total /
+                                      (time.time() - self.start_time)),
+        ', total: %s' % _size_label(self.secondary.total),
     ]
 
     if not self._title_last_updated or time.time() - self._title_last_updated > TITLE_UPDATE_RATE:
@@ -389,8 +418,10 @@ class ConnectionStats(GraphCategory):
     self.primary.update(inbound_count)
     self.secondary.update(outbound_count)
 
-    self._primary_header_stats = [str(self.primary.latest_value), ', avg: %i' % self.primary.average()]
-    self._secondary_header_stats = [str(self.secondary.latest_value), ', avg: %i' % self.secondary.average()]
+    self._primary_header_stats = [
+        str(self.primary.latest_value), ', avg: %i' % self.primary.average()]
+    self._secondary_header_stats = [
+        str(self.secondary.latest_value), ', avg: %i' % self.secondary.average()]
 
 
 class ResourceStats(GraphCategory):
@@ -406,11 +437,14 @@ class ResourceStats(GraphCategory):
 
   def bandwidth_event(self, event):
     resources = nyx.tracker.get_resource_tracker().get_value()
-    self.primary.update(resources.cpu_sample * 100)  # decimal percentage to whole numbers
+    # decimal percentage to whole numbers
+    self.primary.update(resources.cpu_sample * 100)
     self.secondary.update(resources.memory_bytes)
 
-    self._primary_header_stats = ['%0.1f%%' % self.primary.latest_value, ', avg: %0.1f%%' % self.primary.average()]
-    self._secondary_header_stats = [str_tools.size_label(self.secondary.latest_value, 1), ', avg: %s' % str_tools.size_label(self.secondary.average(), 1)]
+    self._primary_header_stats = [
+        '%0.1f%%' % self.primary.latest_value, ', avg: %0.1f%%' % self.primary.average()]
+    self._secondary_header_stats = [str_tools.size_label(
+        self.secondary.latest_value, 1), ', avg: %s' % str_tools.size_label(self.secondary.average(), 1)]
 
 
 class GraphPanel(nyx.panel.Panel):
@@ -430,8 +464,8 @@ class GraphPanel(nyx.panel.Panel):
     self._accounting_stats_paused = None
 
     self._stats = {
-      GraphStat.BANDWIDTH: BandwidthStats(),
-      GraphStat.SYSTEM_RESOURCES: ResourceStats(),
+        GraphStat.BANDWIDTH: BandwidthStats(),
+        GraphStat.SYSTEM_RESOURCES: ResourceStats(),
     }
 
     self._stats_lock = threading.RLock()
@@ -440,7 +474,8 @@ class GraphPanel(nyx.panel.Panel):
     if CONFIG['show_connections']:
       self._stats[GraphStat.CONNECTIONS] = ConnectionStats()
     elif self._displayed_stat == GraphStat.CONNECTIONS:
-      log.warn("The connection graph is unavailble when you set 'show_connections false'.")
+      log.warn(
+          "The connection graph is unavailble when you set 'show_connections false'.")
       self._displayed_stat = GraphStat.BANDWIDTH
 
     controller = tor_controller()
@@ -462,7 +497,8 @@ class GraphPanel(nyx.panel.Panel):
       return 0
 
     height = DEFAULT_CONTENT_HEIGHT + self._graph_height
-    accounting_stats = self._accounting_stats if not nyx_interface().is_paused() else self._accounting_stats_paused
+    accounting_stats = self._accounting_stats if not nyx_interface(
+    ).is_paused() else self._accounting_stats_paused
 
     if self._displayed_stat == GraphStat.BANDWIDTH and accounting_stats:
       height += 3
@@ -484,7 +520,8 @@ class GraphPanel(nyx.panel.Panel):
     with nyx.curses.CURSES_LOCK:
       try:
         while True:
-          show_message('press the down/up to resize the graph, and enter when done', BOLD)
+          show_message(
+              'press the down/up to resize the graph, and enter when done', BOLD)
           key = nyx.curses.key_input()
 
           if key.match('down'):
@@ -508,30 +545,38 @@ class GraphPanel(nyx.panel.Panel):
   def set_paused(self, is_pause):
     if is_pause:
       self._accounting_stats_paused = copy.copy(self._accounting_stats)
-      self._stats_paused = dict([(key, type(self._stats[key])(self._stats[key])) for key in self._stats])
+      self._stats_paused = dict(
+          [(key, type(self._stats[key])(self._stats[key])) for key in self._stats])
 
   def key_handlers(self):
     def _pick_stats():
       available_stats = sorted(self.stat_options())
       options = ['None'] + [stat.capitalize() for stat in available_stats]
-      previous_selection = options[available_stats.index(self._displayed_stat) + 1] if self._displayed_stat else 'None'
+      previous_selection = options[available_stats.index(
+          self._displayed_stat) + 1] if self._displayed_stat else 'None'
 
-      selection = nyx.popups.select_from_list('Graphed Stats:', options, previous_selection)
-      self._displayed_stat = None if selection == 'None' else available_stats[options.index(selection) - 1]
+      selection = nyx.popups.select_from_list(
+          'Graphed Stats:', options, previous_selection)
+      self._displayed_stat = None if selection == 'None' else available_stats[options.index(
+          selection) - 1]
 
     def _next_bounds():
       self._bounds_type = Bounds.next(self._bounds_type)
       self.redraw()
 
     def _pick_interval():
-      self._update_interval = nyx.popups.select_from_list('Update Interval:', list(Interval), self._update_interval)
+      self._update_interval = nyx.popups.select_from_list(
+          'Update Interval:', list(Interval), self._update_interval)
       self.redraw()
 
     return (
-      nyx.panel.KeyHandler('g', 'resize graph', self._resize_graph),
-      nyx.panel.KeyHandler('s', 'graphed stats', _pick_stats, self._displayed_stat if self._displayed_stat else 'none'),
-      nyx.panel.KeyHandler('b', 'graph bounds', _next_bounds, self._bounds_type.replace('_', ' ')),
-      nyx.panel.KeyHandler('i', 'graph update interval', _pick_interval, self._update_interval),
+        nyx.panel.KeyHandler('g', 'resize graph', self._resize_graph),
+        nyx.panel.KeyHandler('s', 'graphed stats', _pick_stats,
+                             self._displayed_stat if self._displayed_stat else 'none'),
+        nyx.panel.KeyHandler('b', 'graph bounds', _next_bounds,
+                             self._bounds_type.replace('_', ' ')),
+        nyx.panel.KeyHandler('i', 'graph update interval',
+                             _pick_interval, self._update_interval),
     )
 
   def submenu(self):
@@ -546,16 +591,22 @@ class GraphPanel(nyx.panel.Panel):
           Bounds (Submenu)
     """
 
-    stat_group = RadioGroup(functools.partial(setattr, self, '_displayed_stat'), self._displayed_stat)
-    interval_group = RadioGroup(functools.partial(setattr, self, '_update_interval'), self._update_interval)
-    bounds_group = RadioGroup(functools.partial(setattr, self, '_bounds_type'), self._bounds_type)
+    stat_group = RadioGroup(functools.partial(
+        setattr, self, '_displayed_stat'), self._displayed_stat)
+    interval_group = RadioGroup(functools.partial(
+        setattr, self, '_update_interval'), self._update_interval)
+    bounds_group = RadioGroup(functools.partial(
+        setattr, self, '_bounds_type'), self._bounds_type)
 
     return Submenu('Graph', [
-      RadioMenuItem('None', stat_group, None),
-      [RadioMenuItem(str_tools._to_camel_case(opt, divider = ' '), stat_group, opt) for opt in sorted(self.stat_options())],
-      MenuItem('Resize...', self._resize_graph),
-      Submenu('Interval', [RadioMenuItem(opt, interval_group, opt) for opt in Interval]),
-      Submenu('Bounds', [RadioMenuItem(opt, bounds_group, opt) for opt in Bounds]),
+        RadioMenuItem('None', stat_group, None),
+        [RadioMenuItem(str_tools._to_camel_case(opt, divider=' '),
+                       stat_group, opt) for opt in sorted(self.stat_options())],
+        MenuItem('Resize...', self._resize_graph),
+        Submenu('Interval', [RadioMenuItem(opt, interval_group, opt)
+                             for opt in Interval]),
+        Submenu('Bounds', [RadioMenuItem(opt, bounds_group, opt)
+                           for opt in Bounds]),
     ])
 
   def _draw(self, subwindow):
@@ -579,11 +630,14 @@ class GraphPanel(nyx.panel.Panel):
 
       subwindow.addstr(0, 0, stat.title(subwindow.width), HIGHLIGHT)
 
-      _draw_subgraph(subwindow, stat.primary, 0, subgraph_width, subgraph_height, bounds_type, interval, PRIMARY_COLOR)
-      _draw_subgraph(subwindow, stat.secondary, subgraph_width, subgraph_width, subgraph_height, bounds_type, interval, SECONDARY_COLOR)
+      _draw_subgraph(subwindow, stat.primary, 0, subgraph_width,
+                     subgraph_height, bounds_type, interval, PRIMARY_COLOR)
+      _draw_subgraph(subwindow, stat.secondary, subgraph_width, subgraph_width,
+                     subgraph_height, bounds_type, interval, SECONDARY_COLOR)
 
       if stat.stat_type() == GraphStat.BANDWIDTH and accounting_stats:
-        _draw_accounting_stats(subwindow, DEFAULT_CONTENT_HEIGHT + subgraph_height - 2, accounting_stats)
+        _draw_accounting_stats(
+            subwindow, DEFAULT_CONTENT_HEIGHT + subgraph_height - 2, accounting_stats)
 
   def _update_accounting(self, event):
     if not CONFIG['show_accounting']:
@@ -612,12 +666,13 @@ class GraphPanel(nyx.panel.Panel):
         self.redraw()
 
 
-def _draw_subgraph(subwindow, data, x, width, height, bounds_type, interval, color, fill_char = ' '):
+def _draw_subgraph(subwindow, data, x, width, height, bounds_type, interval, color, fill_char=' '):
   """
   Renders subgraph including its title, labeled axis, and content.
   """
 
-  columns = width - 8  # y-axis labels can be at most six characters wide with a space on either side
+  # y-axis labels can be at most six characters wide with a space on either side
+  columns = width - 8
   min_bound, max_bound = data.bounds(bounds_type, interval, columns)
 
   x_axis_labels = _x_axis_labels(interval, columns)
@@ -636,8 +691,10 @@ def _draw_subgraph(subwindow, data, x, width, height, bounds_type, interval, col
 
   for col in range(columns):
     column_count = int(data.values[interval][col]) - min_bound
-    column_height = int(min(height - 2, (height - 2) * column_count / (max(1, max_bound) - min_bound)))
-    subwindow.vline(x + col + x_axis_offset + 1, height - column_height, column_height, color, HIGHLIGHT, char = fill_char)
+    column_height = int(min(height - 2, (height - 2) *
+                        column_count / (max(1, max_bound) - min_bound)))
+    subwindow.vline(x + col + x_axis_offset + 1, height - column_height,
+                    column_height, color, HIGHLIGHT, char=fill_char)
 
 
 def _x_axis_labels(interval, columns):
@@ -678,8 +735,8 @@ def _y_axis_labels(subgraph_height, data, min_bound, max_bound):
   """
 
   y_axis_labels = {
-    2: data.y_axis_label(max_bound),
-    subgraph_height - 1: data.y_axis_label(min_bound),
+      2: data.y_axis_label(max_bound),
+      subgraph_height - 1: data.y_axis_label(min_bound),
   }
 
   ticks = (subgraph_height - 5) // 2
@@ -690,7 +747,8 @@ def _y_axis_labels(subgraph_height, data, min_bound, max_bound):
     if subgraph_height % 2 == 0 and i >= (ticks // 2):
       row -= 1  # make extra gap be in the middle when we're an even size
 
-    val = (max_bound - min_bound) * (subgraph_height - row - 3) // (subgraph_height - 3)
+    val = (max_bound - min_bound) * \
+        (subgraph_height - row - 3) // (subgraph_height - 3)
 
     if val not in (min_bound, max_bound):
       y_axis_labels[row + 2] = data.y_axis_label(val)
@@ -700,25 +758,29 @@ def _y_axis_labels(subgraph_height, data, min_bound, max_bound):
 
 def _draw_accounting_stats(subwindow, y, accounting):
   if tor_controller().is_alive():
-    hibernate_color = CONFIG['attr.hibernate_color'].get(accounting.status, RED)
+    hibernate_color = CONFIG['attr.hibernate_color'].get(
+        accounting.status, RED)
 
     x = subwindow.addstr(0, y, 'Accounting (', BOLD)
     x = subwindow.addstr(x, y, accounting.status, BOLD, hibernate_color)
     x = subwindow.addstr(x, y, ')', BOLD)
 
-    subwindow.addstr(35, y, 'Time to reset: %s' % str_tools.short_time_label(accounting.time_until_reset))
+    subwindow.addstr(35, y, 'Time to reset: %s' %
+                     str_tools.short_time_label(accounting.time_until_reset))
 
-    subwindow.addstr(2, y + 1, '%s / %s' % (_size_label(accounting.read_bytes), _size_label(accounting.read_limit)), PRIMARY_COLOR)
-    subwindow.addstr(37, y + 1, '%s / %s' % (_size_label(accounting.written_bytes), _size_label(accounting.write_limit)), SECONDARY_COLOR)
+    subwindow.addstr(2, y + 1, '%s / %s' % (_size_label(accounting.read_bytes),
+                     _size_label(accounting.read_limit)), PRIMARY_COLOR)
+    subwindow.addstr(37, y + 1, '%s / %s' % (_size_label(accounting.written_bytes),
+                     _size_label(accounting.write_limit)), SECONDARY_COLOR)
   else:
     subwindow.addstr(0, y, 'Accounting:', BOLD)
     subwindow.addstr(12, y, 'Connection Closed...')
 
 
-def _size_label(byte_count, decimal = 1):
+def _size_label(byte_count, decimal=1):
   """
   Alias for str_tools.size_label() that accounts for if the user prefers bits
   or bytes.
   """
 
-  return str_tools.size_label(byte_count, decimal, is_bytes = not CONFIG['show_bits'], round = True)
+  return str_tools.size_label(byte_count, decimal, is_bytes=not CONFIG['show_bits'], round=True)
