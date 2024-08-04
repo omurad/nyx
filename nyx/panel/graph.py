@@ -146,7 +146,7 @@ class GraphData(object):
       self._is_primary = clone._is_primary
       self._in_process_value = dict(clone._in_process_value)
       self._max_value = dict(clone._max_value)
-      self.first_update = True  # Flag to check if update() is called for the first time
+      self.first_update = False  # Flag to check if update() is called for the first time
     else:
       self.latest_value = 0
       self.total = 0
@@ -165,23 +165,22 @@ class GraphData(object):
     return self.total / max(1, self.tick)
 
   def update(self, new_value):
-    if not self.first_update:
-      self.latest_value = new_value
-    else:
-      self.first_update = False
-
     self.total += new_value
     self.tick += 1
 
-    for interval in Interval:
-      interval_seconds = INTERVAL_SECONDS[interval]
-      self._in_process_value[interval] += new_value
+    if not self.first_update:
+      self.latest_value = new_value
+      for interval in Interval:
+        interval_seconds = INTERVAL_SECONDS[interval]
+        self._in_process_value[interval] += new_value
 
-      if self.tick % interval_seconds == 0:
-        new_entry = self._in_process_value[interval] / interval_seconds
-        self.values[interval] = [new_entry] + self.values[interval][:-1]
-        self._max_value[interval] = max(self._max_value[interval], new_entry)
-        self._in_process_value[interval] = 0
+        if self.tick % interval_seconds == 0:
+          new_entry = self._in_process_value[interval] / interval_seconds
+          self.values[interval] = [new_entry] + self.values[interval][:-1]
+          self._max_value[interval] = max(self._max_value[interval], new_entry)
+          self._in_process_value[interval] = 0
+    else:
+      self.first_update = False
 
   def header(self, width):
     """
