@@ -342,8 +342,7 @@ class BandwidthStats(GraphCategory):
         if is_successful:
           log.notice('Bandwidth graph has information for the last %s' %
                    str_tools.time_label(len(bw_entries.split()), is_long=True))
-          log.notice('Entries %s' %
-                   (bw_entries), is_long=True))
+          log.notice('Entries %s' % bw_entries)
 
       read_total = controller.get_info('traffic/read', None)
       write_total = controller.get_info('traffic/written', None)
