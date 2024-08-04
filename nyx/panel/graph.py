@@ -138,6 +138,7 @@ class GraphData(object):
       self._is_primary = clone._is_primary
       self._in_process_value = dict(clone._in_process_value)
       self._max_value = dict(clone._max_value)
+      self.first_update = True  # Flag to check if update() is called for the first time
     else:
       self.latest_value = 0
       self.total = 0
