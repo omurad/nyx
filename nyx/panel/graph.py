@@ -324,7 +324,7 @@ class BandwidthStats(GraphCategory):
 
       controller = tor_controller()
       bw_entries, is_successful = controller.get_info(
-          'bw-event-cache', None), True
+          'bw-event-cache', None), True")
 
       if bw_entries:
         for entry in bw_entries.split():
@@ -340,7 +340,7 @@ class BandwidthStats(GraphCategory):
           self.secondary.update(int(entry_comp[1]))
 
         if is_successful:
-          log.info('Bandwidth graph has information for the last %s' %
+          log.notice('Bandwidth graph has information for the last %s' %
                    str_tools.time_label(len(bw_entries.split()), is_long=True))
 
       read_total = controller.get_info('traffic/read', None)
