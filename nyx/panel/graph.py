@@ -138,6 +138,7 @@ class GraphData(object):
       self._is_primary = clone._is_primary
       self._in_process_value = dict(clone._in_process_value)
       self._max_value = dict(clone._max_value)
+      self._first_update = True  # Flag to track the first update call
     else:
       self.latest_value = 0
       self.total = 0
@@ -148,12 +149,17 @@ class GraphData(object):
       self._is_primary = is_primary
       self._in_process_value = dict([(i, 0) for i in Interval])
       self._max_value = dict([(i, 0) for i in Interval])  # interval => maximum value it's had
+      self._first_update = True  # Flag to track the first update call
 
   def average(self):
     return self.total / max(1, self.tick)
 
   def update(self, new_value):
-    self.latest_value = new_value
+    if not self._first_update:
+            self.latest_value = new_value
+    else:
+      self._first_update = False
+    
     self.total += new_value
     self.tick += 1
 
