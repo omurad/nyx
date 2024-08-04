@@ -165,6 +165,11 @@ class GraphData(object):
     return self.total / max(1, self.tick)
 
   def update(self, new_value):
+    bw_burst = tor_controller().get_effective_rate(None, burst = True)
+
+    if new_value > bw_burst:
+      log.notice("Bandwidth rate exceeded burst limit (%s current > %s burst)" % (new_value, bw_burst))
+
     self.total += new_value
     self.tick += 1
 
