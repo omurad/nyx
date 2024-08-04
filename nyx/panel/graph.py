@@ -14,7 +14,7 @@ Downloaded (0.0 B/sec):           Uploaded (0.0 B/sec):
          25s  50   1m   1.6  2.0           25s  50   1m   1.6  2.0
 """
 
-import timeit
+#import timeit
 
 import copy
 import functools
@@ -148,7 +148,7 @@ class GraphData(object):
       self._is_primary = clone._is_primary
       self._in_process_value = dict(clone._in_process_value)
       self._max_value = dict(clone._max_value)
-      self.first_update = True  # Flag to check if update() is called for the first time
+      #self.first_update = True  # Flag to check if update() is called for the first time
     else:
       self.latest_value = 0
       self.total = 0
@@ -161,19 +161,20 @@ class GraphData(object):
       self._in_process_value = dict([(i, 0) for i in Interval])
       # interval => maximum value it's had
       self._max_value = dict([(i, 0) for i in Interval])
-      self.first_update = True  # Flag to check if update() is called for the first time
+      #self.first_update = True  # Flag to check if update() is called for the first time
 
   def average(self):
     return self.total / max(1, self.tick)
 
   def update(self, new_value):
     # Start timing
-    start_time = timeit.default_timer()
-    if not self.first_update:
-      self.latest_value = new_value
-    else:
-      self.first_update = False
+    #start_time = timeit.default_timer()
+    #if not self.first_update:
+    #  self.latest_value = new_value
+    #else:
+    #  self.first_update = False
 
+    self.latest_value = new_value
     self.total += new_value
     self.tick += 1
 
