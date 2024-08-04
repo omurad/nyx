@@ -195,7 +195,7 @@ class GraphData(object):
 
         # Log the execution time
         log.notice(
-            f"GraphData.update() executed in {execution_time:.3f} ms")
+            f"GraphData.update() executed in {execution_time}")
 
   def header(self, width):
     """
